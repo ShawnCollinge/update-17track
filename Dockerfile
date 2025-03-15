@@ -8,11 +8,11 @@ RUN git clone https://github.com/ShawnCollinge/update-17track.git /app
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN python3 /app/main.py
+# COPY crontab /etc/cron.d/update-17track-cron
 
-COPY crontab /etc/cron.d/update-17track-cron
+# RUN chmod 0644 /etc/cron.d/update-17track-cron && \
+#     crontab /etc/cron.d/update-17track-cron
 
-RUN chmod 0644 /etc/cron.d/update-17track-cron && \
-    crontab /etc/cron.d/update-17track-cron
+# CMD ["cron", "-f"]
 
-CMD ["cron", "-f"]
+CMD ["python3", "/app/main.py"]
