@@ -3,12 +3,15 @@ import logging
 import re
 from imapclient import IMAPClient
 from mailparser import parse_from_bytes
-from custom_components.email.parsers import *  
+from custom_components.parsers import *  
 import asyncio
 import os
 from aiohttp import ClientSession
 from pyseventeentrack import Client
+from dotenv import load_dotenv
 
+
+load_dotenv()
 
 from custom_components.const import (
     CONF_EMAIL, CONF_PASSWORD, CONF_IMAP_SERVER,
