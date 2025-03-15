@@ -203,7 +203,7 @@ class EmailEntity():
             server.login(self.email_address, self.password)
             server.select_folder(self.email_folder, readonly=True)
         except Exception as err:
-            _LOGGER.error('IMAPClient login error {}'.format(err))
+            print('IMAPClient login error')
             return False
 
         try:
@@ -218,11 +218,11 @@ class EmailEntity():
                         EMAIL_ATTR_BODY: mail.body
                     })
                 except Exception as err:
-                    _LOGGER.warning(
-                        'mailparser parse_from_bytes error: {}'.format(err))
+                    print(
+                        'mailparser parse_from_bytes error')
 
         except Exception as err:
-            _LOGGER.error('IMAPClient update error: {}'.format(err))
+            print('IMAPClient update error')
 
         # empty out all parser arrays
         for ATTR, EMAIL_DOMAIN, parser in parsers:
@@ -241,7 +241,6 @@ class EmailEntity():
                     
             for email in emails:
                 email_from = email[EMAIL_ATTR_FROM]
-                _LOGGER.debug(f'parsing email from {email_from}')
                 if isinstance(email_from, (list, tuple)):
                     email_from = list(email_from)
                     email_from = ''.join(list(email_from[0]))
@@ -260,6 +259,7 @@ class EmailEntity():
                                         'tracking_number': tracking,
                                         'name': friendly_name
                                     })
+                                    print(f'Adding {tracking} from {friendly_name}')
                                     await client.profile.add_package(tracking, friendly_name)
 
                     except Exception as err:

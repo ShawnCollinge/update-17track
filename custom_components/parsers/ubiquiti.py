@@ -13,7 +13,6 @@ EMAIL_DOMAIN_UBIQUITI = 'shopifyemail.com'
 def parse_ubiquiti(email):
     """Parse Ubiquiti tracking numbers."""
     tracking_numbers = []
-    _LOGGER.error(email)
 
     # see if it's an shipped order email
     order_number_match = re.search('A shipment from order #(.*?) is on the way', email[EMAIL_ATTR_SUBJECT])

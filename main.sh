@@ -1,5 +1,7 @@
 #!/bin/sh
 
+exec python3 /app/main.py
+
 cron &
 
-exec python3 /app/main.py
+exec tail -f /var/log/cron.log
