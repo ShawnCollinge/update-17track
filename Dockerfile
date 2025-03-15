@@ -17,3 +17,4 @@ RUN chmod 0644 /etc/cron.d/update-17track-cron && \
     crontab /etc/cron.d/update-17track-cron
 
 CMD ["cron", "-f"]
+CMD ["python3", "/app/main.py"]
