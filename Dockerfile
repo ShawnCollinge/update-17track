@@ -16,4 +16,4 @@ RUN echo "" >> /etc/cron.d/update-17track-cron  # Ensure newline at EOF
 RUN chmod 0644 /etc/cron.d/update-17track-cron && crontab /etc/cron.d/update-17track-cron
 
 
-CMD ["crontab", "-f"]
+CMD ["cron", "-f"]
