@@ -228,7 +228,7 @@ class EmailEntity():
         # for each email run each parser and save in the corresponding ATTR
         async with ClientSession() as session:
             client = Client(session=session)
-            await client.profile.login(os.getenv("SEVENTEEN_EMAIL"), "SEVENTEEN_PASSWORD")
+            await client.profile.login(os.getenv("SEVENTEEN_EMAIL"), os.getenv("SEVENTEEN_PASSWORD"))
 
             packages = await client.profile.packages()
             for package in packages:
