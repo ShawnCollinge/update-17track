@@ -1,3 +1,5 @@
 beautifulsoup4==4.7.1
 imapclient==2.1.0
 mail-parser==3.9.3
+pyseventeentrack
+aiohttp
