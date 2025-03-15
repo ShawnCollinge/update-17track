@@ -172,7 +172,7 @@ class EmailEntity():
         'imap_port': 993,
         'ssl': True,
         'email_folder': "INBOX",
-        'days_old': 1
+        'days_old': 30
         }
 
         self.imap_server = config["imap_server"]
