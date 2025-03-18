@@ -13,13 +13,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from custom_components.const import (
-    CONF_EMAIL, CONF_PASSWORD, CONF_IMAP_SERVER,
-    CONF_IMAP_PORT, CONF_SSL, CONF_EMAIL_FOLDER, CONF_DAYS_OLD,
-    ATTR_TRACKING_NUMBERS, EMAIL_ATTR_FROM, EMAIL_ATTR_SUBJECT,
-    EMAIL_ATTR_BODY, ATTR_COUNT)
-
-
 from custom_components.parsers.ups import ATTR_UPS, EMAIL_DOMAIN_UPS, parse_ups
 from custom_components.parsers.amazon import ATTR_AMAZON, EMAIL_DOMAIN_AMAZON, parse_amazon
 from custom_components.parsers.amazon_de import ATTR_AMAZON_DE, EMAIL_DOMAIN_AMAZON_DE, parse_amazon_de
@@ -66,21 +59,11 @@ from custom_components.parsers.sylvane import ATTR_SYLVANE, EMAIL_DOMAIN_SYLVANE
 from custom_components.parsers.adafruit import ATTR_ADAFRUIT, EMAIL_DOMAIN_ADAFRUIT, parse_adafruit
 from custom_components.parsers.thriftbooks import ATTR_THRIFT_BOOKS, EMAIL_DOMAIN_THRIFT_BOOKS, parse_thrift_books
 from custom_components.parsers.lowes import ATTR_LOWES, EMAIL_DOMAIN_LOWES, parse_lowes
-
 from custom_components.parsers.generic import ATTR_GENERIC, EMAIL_DOMAIN_GENERIC, parse_generic
 
 
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
-
-TRACKING_NUMBER_URLS = {
-    'ups': "https://www.ups.com/track?loc=en_US&tracknum=",
-    'usps': "https://tools.usps.com/go/TrackConfirmAction?tLabels=",
-    'fedex': "https://www.fedex.com/apps/fedextrack/?tracknumbers=",
-    'dhl': 'https://www.logistics.dhl/us-en/home/tracking/tracking-parcel.html?submit=1&tracking-id=',
-    'swiss_post': 'https://www.swisspost.ch/track?formattedParcelCodes=',
-    'unknown': 'https://www.google.com/search?q=',
-}
 
 parsers = [
     (ATTR_UPS, EMAIL_DOMAIN_UPS, parse_ups),
@@ -129,146 +112,96 @@ parsers = [
     (ATTR_ADAFRUIT, EMAIL_DOMAIN_ADAFRUIT, parse_adafruit),
     (ATTR_THRIFT_BOOKS, EMAIL_DOMAIN_THRIFT_BOOKS, parse_thrift_books),
     (ATTR_LOWES, EMAIL_DOMAIN_LOWES, parse_lowes),
-    
     (ATTR_GENERIC, EMAIL_DOMAIN_GENERIC, parse_generic),
 ]
 
-def find_carrier(tracking_number, email_domain):
-    """Determine the carrier based on tracking number or email domain."""
-    if isinstance(tracking_number, dict):
-        return {
-            'tracking_number': tracking_number.get('tracking_number', ''),
-            'carrier': email_domain,
-            'origin': email_domain,
-            'link': tracking_number.get('link', ''),
-        }
-    
-    carrier, link = "Unknown", TRACKING_NUMBER_URLS["unknown"]
-    if tracking_number.startswith('http'):
-        link, carrier = tracking_number, email_domain
-    elif email_domain in TRACKING_NUMBER_URLS:
-        link, carrier = TRACKING_NUMBER_URLS[email_domain], email_domain
-    
-    return {
-        'tracking_number': tracking_number,
-        'carrier': carrier,
-        'origin': email_domain or carrier,
-        'link': f'{link}{tracking_number}',
-    }
 
-class EmailEntity():
-    """Email Entity."""
+async def update_packages():
+    DAYS_OLD = int(os.getenv("DAYS_OLD", 30))
+    IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
+    IMAP_PORT = int(os.getenv("IMAP_PORT", 993))
+    USE_SSL = bool(os.getenv("USE_SSL", True))
+    TRACKING_EMAIL = os.getenv("TRACKING_EMAIL")
+    TRACKING_PASSWORD = os.getenv("TRACKING_PASSWORD")
+    TRACKING_FOLDER = os.getenv("TRACKING_FOLDER", "INBOX")
+    SEVENTEEN_EMAIL = os.getenv("SEVENTEEN_EMAIL")
+    SEVENTEEN_PASSWORD = os.getenv("SEVENTEEN_PASSWORD")
 
-    def __init__(self):
-        """Init the Email Entity."""
-        self._attr = {
-            ATTR_TRACKING_NUMBERS: {},
-	        ATTR_COUNT: 0
-        }
-        config = {
-        'email': os.getenv("TRACKING_EMAIL"),
-        'password': os.getenv("TRACKING_EMAIL_PASSWORD"),
-        'imap_server': "imap.gmail.com",
-        'imap_port': 993,
-        'ssl': True,
-        'email_folder': "INBOX",
-        'days_old': 30
-        }
+    if (TRACKING_EMAIL is None or TRACKING_PASSWORD is None or SEVENTEEN_EMAIL is None or SEVENTEEN_PASSWORD is None):
+        _LOGGER.error('Missing environment variables')
+        return
 
-        self.imap_server = config["imap_server"]
-        self.imap_port = config["imap_port"]
-        self.email_address = config["email"]
-        self.password = config["password"]
-        self.email_folder = config["email_folder"]
-        self.ssl = config["ssl"]
-        self.days_old = int(config["days_old"])
+    already_added = set()
+    res = []
+    flag = [u'SINCE', date.today() - timedelta(days=DAYS_OLD)]
 
-        self.flag = [u'SINCE', date.today() - timedelta(days=self.days_old)]
+    emails = []
+    server = IMAPClient(IMAP_SERVER, IMAP_PORT, use_uid=True, ssl=USE_SSL)
 
-    async def update(self):
-        """Update data from Email API."""
-        self._attr = {
-            ATTR_TRACKING_NUMBERS: {},
-	        ATTR_COUNT: 0
-        }
-        already_added = set()
-        res = []
-        self.flag = [u'SINCE', date.today() - timedelta(days=self.days_old)]
-        _LOGGER.debug(f'flag: {self.flag}')
+    try:
+        server.login(TRACKING_EMAIL, TRACKING_PASSWORD)
+        server.select_folder(TRACKING_FOLDER, readonly=True)
+    except Exception as err:
+        _LOGGER.error('IMAPClient login error')
+        return
 
-        emails = []
-        server = IMAPClient(self.imap_server, port=self.imap_port, use_uid=True, ssl=self.ssl)
+    try:
+        messages = server.search(flag)
+        for uid, message_data in server.fetch(messages, 'RFC822').items():
+            try:
+                mail = parse_from_bytes(message_data[b'RFC822'])
+                
+                emails.append({
+                    "from": mail.from_,
+                    "subject": mail.subject,
+                    "body": mail.body
+                })
+            except Exception as err:
+                _LOGGER.error(
+                    'mailparser parse_from_bytes error')
 
-        try:
-            server.login(self.email_address, self.password)
-            server.select_folder(self.email_folder, readonly=True)
-        except Exception as err:
-            print('IMAPClient login error')
-            return False
+    except Exception as err:
+        _LOGGER.error('IMAPClient update error')
 
-        try:
-            messages = server.search(self.flag)
-            for uid, message_data in server.fetch(messages, 'RFC822').items():
-                try:
-                    mail = parse_from_bytes(message_data[b'RFC822'])
-                    
-                    emails.append({
-                        EMAIL_ATTR_FROM: mail.from_,
-                        EMAIL_ATTR_SUBJECT: mail.subject,
-                        EMAIL_ATTR_BODY: mail.body
-                    })
-                except Exception as err:
-                    print(
-                        'mailparser parse_from_bytes error')
 
-        except Exception as err:
-            print('IMAPClient update error')
+    async with ClientSession() as session:
+        client = Client(session=session)
+        await client.profile.login(SEVENTEEN_EMAIL, SEVENTEEN_PASSWORD)
 
-        # empty out all parser arrays
-        for ATTR, EMAIL_DOMAIN, parser in parsers:
-            self._attr[ATTR_TRACKING_NUMBERS][ATTR] = []
-
-        # for each email run each parser and save in the corresponding ATTR
-        async with ClientSession() as session:
-            client = Client(session=session)
-            await client.profile.login(os.getenv("SEVENTEEN_EMAIL"), os.getenv("SEVENTEEN_PASSWORD"))
-
-            packages = await client.profile.packages()
+        packages = await client.profile.packages()
+        if (os.getenv("REMOVE_DELIVERED", True)):
             for package in packages:
                 already_added.add(package.tracking_number)
                 if (package.status == "Delivered"):
                     await client.profile.archive_package(package.tracking_number)
-                    
-            for email in emails:
-                email_from = email[EMAIL_ATTR_FROM]
-                if isinstance(email_from, (list, tuple)):
-                    email_from = list(email_from)
-                    email_from = ''.join(list(email_from[0]))
                 
-                # run through all parsers for each email if email domain matches
-                for ATTR, EMAIL_DOMAIN, parser in parsers:
-                    _LOGGER.debug(f'parsing email for parser {EMAIL_DOMAIN}')
-                    try:
-                        if EMAIL_DOMAIN in email_from:
-                            tracking_numbers = parser(email=email)
-                            for tracking in tracking_numbers:
-                                if tracking not in already_added:
-                                    already_added.add(tracking)
-                                    friendly_name = ATTR if ATTR != 'generic' else email_from.split("@")[1]
-                                    res.append({
-                                        'tracking_number': tracking,
-                                        'name': friendly_name
-                                    })
-                                    print(f'Adding {tracking} from {friendly_name}')
-                                    await client.profile.add_package(tracking, friendly_name)
+        for email in emails:
+            email_from = email["from"]
+            if isinstance(email_from, (list, tuple)):
+                email_from = list(email_from)
+                email_from = ''.join(list(email_from[0]))
+            
+            for ATTR, EMAIL_DOMAIN, parser in parsers:
+                _LOGGER.debug(f'parsing email for parser {EMAIL_DOMAIN}')
+                try:
+                    if EMAIL_DOMAIN in email_from:
+                        tracking_numbers = parser(email=email)
+                        for tracking in tracking_numbers:
+                            if tracking not in already_added:
+                                already_added.add(tracking)
+                                friendly_name = ATTR if ATTR != 'generic' else email_from.split("@")[1]
+                                res.append({
+                                    'tracking_number': tracking,
+                                    'name': friendly_name
+                                })
+                                _LOGGER.debug(f'Adding {tracking} from {friendly_name}')
+                                await client.profile.add_package(tracking, friendly_name)
 
-                    except Exception as err:
-                        _LOGGER.error('{} error: {}'.format(ATTR, err))
-        server.logout()
-
+                except Exception as err:
+                    _LOGGER.error('{} error: {}'.format(ATTR, err))
+    server.logout()
 
 if __name__ == "__main__":
-    email = EmailEntity()
-    asyncio.run(email.update())
+    asyncio.run(update_packages())
 
 
