@@ -31,3 +31,32 @@ services:
 | `REMOVE_DELIVERED`  | Whether to remove delivered packages (`True`/`False`)   | `True`       |
 
 ---
+
+
+
+
+## Automate every 12h with ofelia
+
+```
+version: "2"
+services:
+  scheduler:
+    image: mcuadros/ofelia:latest
+    container_name: scheduler
+    command: daemon --docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      ofelia.job-run.sync-17track.schedule: "@every 12h"
+      ofelia.job-run.sync-17track.container: sync-17track
+    restart: unless-stopped
+  sync-17track:
+    container_name: sync-17track
+    image: scollinge/sync-17track:latest
+    environment:
+      - SEVENTEEN_EMAIL=
+      - SEVENTEEN_PASSWORD=
+      - TRACKING_EMAIL=
+      - TRACKING_PASSWORD=
+    restart: no
+```
