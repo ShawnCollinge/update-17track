@@ -12,7 +12,7 @@ services:
       - SEVENTEEN_EMAIL= 
       - SEVENTEEN_PASSWORD= 
       - TRACKING_EMAIL= 
-      - TRACKING_EMAIL_PASSWORD= 
+      - TRACKING_PASSWORD= 
 ```
 
 ## Environment Variables
