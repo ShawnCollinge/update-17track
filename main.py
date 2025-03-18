@@ -126,6 +126,7 @@ async def update_packages():
     TRACKING_FOLDER = os.getenv("TRACKING_FOLDER", "INBOX")
     SEVENTEEN_EMAIL = os.getenv("SEVENTEEN_EMAIL")
     SEVENTEEN_PASSWORD = os.getenv("SEVENTEEN_PASSWORD")
+    ARCHIVE_DELIVERED = bool(os.getenv("ARCHIVE_DELIVERED", True))
 
     if (TRACKING_EMAIL is None or TRACKING_PASSWORD is None or SEVENTEEN_EMAIL is None or SEVENTEEN_PASSWORD is None):
         _LOGGER.error('Missing environment variables')
@@ -169,7 +170,7 @@ async def update_packages():
         await client.profile.login(SEVENTEEN_EMAIL, SEVENTEEN_PASSWORD)
 
         packages = await client.profile.packages()
-        if (os.getenv("REMOVE_DELIVERED", True)):
+        if (ARCHIVE_DELIVERED):
             for package in packages:
                 already_added.add(package.tracking_number)
                 if (package.status == "Delivered"):

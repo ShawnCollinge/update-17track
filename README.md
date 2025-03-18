@@ -24,11 +24,11 @@ services:
 | `USE_SSL`           | Whether to use SSL for IMAP connection (`true`/`false`) | `true`       |
 | `TRACKING_EMAIL`    | Email address used for tracking orders                  | ❌ None      |
 | `TRACKING_PASSWORD` | Password for the tracking email account                 | ❌ None      |
-| `TRACKING_FOLDER`   | IMAP folder where tracking emails are stored            | `INBOX`      | 
+| `TRACKING_FOLDER`   | Email folder where tracking emails are stored            | `INBOX`      | 
 | `DAYS_OLD`          | Number of days back to search for emails                | `30`         |
 | `SEVENTEEN_EMAIL`   | Email for 17Track login                                 | ❌ None      |
 | `SEVENTEEN_PASSWORD`| Password for 17Track login                              | ❌ None      | 
-| `REMOVE_DELIVERED`  | Whether to remove delivered packages (`True`/`False`)   | `True`       |
+| `ARCHIVE_DELIVERED`  | Whether to archive delivered packages (`True`/`False`)   | `True`       |
 
 ---
 
